@@ -204,24 +204,26 @@ FROM python:3.6-buster
 COPY ./ ./app
 WORKDIR ./app
 RUN pip3 install -r requirements.txt
-CMD python app.py
+CMD ["python3", "app.py"]
 ```
 
-The Python image used is somewhat of an overkill for the simple tokenizer we are using in this example.
+The Python image used may seem somewhat of an overkill for the simple tokenizer we are using in this example, but the installation requirements do not work with a smaller Python like the Alpine version.
 
-To build the Docker image you do:
+> As a side note, an earlier version used "CMD python app.py" as the last line. This resulted in cranky shut down behavior where you could not stop the container with Ctrl-c and where "docker stop" took a while with what looked like an exit with code 137, which indicates an out of memory error.
+
+To build the Docker image you do (the -t option let's you pick a name for the image, you use another name):
 
 ```bash
-$ docker build -t clams-tokenizer-app .
+$ docker build -t clams-tokenizer .
 ```
 
 To test the Flask app in the container do
 
 ```bash
-$ docker run --rm -it clams-tokenizer-app bash
+$ docker run --rm -it clams-tokenizer bash
 ```
 
-And in the container you can run
+You are now running a bash shell in the container (escape out with Ctrl-d) and in the container you can run
 
 ```bash
 $ python3 test.py example-mmif.json out.json 
@@ -230,7 +232,7 @@ $ python3 test.py example-mmif.json out.json
 To test the Flask app in the container do
 
 ```bash
-$ docker run --rm -p 5000:5000 clams-tokenizer-app
+$ docker run --rm -p 5000:5000 clams-tokenizer
 ```
 
 And now you can use curl to send requests:

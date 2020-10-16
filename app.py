@@ -64,7 +64,7 @@ class TokenizerApp(ClamsApp):
                 for doc in docs:
                     doc_id = view.id + ':' + doc.id
                     self._run_nlp_tool(doc, new_view, doc_id)
-        return str(self.mmif)
+        return self.mmif.serialize(pretty=True)
 
     def _new_view(self, docid=None):
         view = self.mmif.new_view()
