@@ -1,4 +1,4 @@
-FROM python:3.6-buster
+FROM clamsproject/clams-python:0.2.0
 
 COPY ./ ./app
 WORKDIR ./app

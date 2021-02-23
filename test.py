@@ -15,7 +15,7 @@ import mmif
 from app import TokenizerApp
 
 with open(sys.argv[1]) as fh_in, open(sys.argv[2], 'w') as fh_out:
-    mmif_out_as_string = TokenizerApp().annotate(fh_in.read())
+    mmif_out_as_string = TokenizerApp().annotate(fh_in.read(), pretty=True)
     mmif_out = mmif.Mmif(mmif_out_as_string)
     fh_out.write(mmif_out_as_string)
     for view in mmif_out.views:

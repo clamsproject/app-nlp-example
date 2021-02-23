@@ -11,7 +11,7 @@ import collections
 # Imports needed for CLAMS and MMIF. Note that non-NLP CLAMS applications also
 # import AnnotationTypes from mmif.vocabulary, but this is not needed for NLP
 # applications.
-from clams.serve import ClamsApp
+from clams.app import ClamsApp
 from clams.restify import Restifier
 from mmif.serialize import *
 from mmif.vocabulary import DocumentTypes
@@ -29,26 +29,23 @@ TEXT_DOCUMENT = os.path.basename(DocumentTypes.TextDocument.value)
 
 class TokenizerApp(ClamsApp):
 
-    def setupmetadata(self):
+    def _appmetadata(self):
         return {
             "name": "Tokenizer Wrapper",
             "app": 'https://apps.clams.ai/tokenizer',
-            "app_version": "0.0.2",
+            "app_version": "0.0.3",
             "tool_version": "0.1.0",
-            "mmif-spec-version": "0.2.1",
-            "mmif-sdk-version": "0.2.0",
-            "clams-version": "0.1.3",
-            "description": "This tool applies simple tokenization to all text documents in an MMIF file.",
+            "mmif-version": "0.2.2",
+            "mmif-python-version": "0.2.2",
+            "clams-python-version": "0.2.0",
+            "description": "Apply simple tokenization to all text documents in an MMIF file.",
             "vendor": "Team CLAMS",
-            "requires": [DocumentTypes.TextDocument.value],
-            "produces": [Uri.TOKEN]
+            "parameters": {},
+            "requires": [{'@type': DocumentTypes.TextDocument.value}],
+            "produces": [{'@type': Uri.TOKEN}]
         }
 
-    def sniff(self, mmif):
-        # this mock-up method always returns true
-        return True
-
-    def annotate(self, mmif):
+    def _annotate(self, mmif, **kwargs):
         Identifiers.reset()
         self.mmif = mmif if type(mmif) is Mmif else Mmif(mmif)
         # process the text documents in the documents list
@@ -64,7 +61,8 @@ class TokenizerApp(ClamsApp):
                 for doc in docs:
                     doc_id = view.id + ':' + doc.id
                     self._run_nlp_tool(doc, new_view, doc_id)
-        return self.mmif.serialize(pretty=True)
+        # always return the MMIF object
+        return self.mmif
 
     def _new_view(self, docid=None):
         view = self.mmif.new_view()

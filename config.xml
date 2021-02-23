@@ -1,6 +1,6 @@
-<tool id="spacy" name="Simple Tokenizer" version="0.0.2">
+<tool id="spacy" name="Simple Tokenizer" version="0.0.3">
   <description>
-    Apply Spacy NLP to a transcript.
+    Apply a simple tokenizer to the input file.
   </description>
   <command interpreter="python3">test.py $input $output</command>
   <inputs>

@@ -1,0 +1,6 @@
+.git/
+.gitignore
+*~
+**/*.pyc
+**/__pycache__
+out*
