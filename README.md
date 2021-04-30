@@ -4,26 +4,12 @@ This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS applic
 
 When building this application you need Python 3.6 or higher and install some modules:
 
-```bash
-$> pip install clams-python==0.2.0
+```
+$> pip install clams-python==0.2.2
 $> pip install lapps==0.0.2
 ```
 
-The first line installs the CLAMS Python interface, which in turn will install the Python interface to the MMIF format and some third party modules like Flask. The second line adds the LAPPS Python interface, which is not included in `clams-python` because the LAPPS interface is only relevant for text processing apps. When you do these installs in a clean Python environment and then do a `pip freeze` the you should a couple dozen installed modules ijncluding the following:
-
-```
-clams-python==0.2.0
-Flask==1.1.0
-Flask-RESTful==0.3.8
-Jinja2==2.11.3
-jsonschema==3.2.0
-lapps==0.0.2
-mmif-python==0.2.2
-requests==2.25.1
-Werkzeug==1.0.1
-```
-
-
+The first line installs the CLAMS Python interface, which in turn installs the Python interface to the MMIF format and some third party modules like Flask. The second line adds the LAPPS Python interface, which is not included in `clams-python` because the LAPPS interface is only relevant for text processing apps.
 
 ### 1.  The NLP tool
 
@@ -44,7 +30,11 @@ def tokenize(text):
 
 ### 2.  Wrapping the tokenizer
 
-By convention, all the wrapping code is in a script named `app.py`. It does several things: (1) it imports the necessary code, (2) it creates a subclass of `ClamsApp` that defines the metadata and provides a method to run the wrapped NLP tool, and (3) it provides a way to run the code as a RESTFul Flask service. The most salient parts of the code are explained here.
+By convention, all the wrapping code is in a script named `app.py`, but this is not a strict requirement. It does several things: (1) it imports the necessary code, (2) it creates a subclass of `ClamsApp` that defines the metadata and provides a method to run the wrapped NLP tool, and (3) it provides a way to run the code as a RESTFul Flask service. The most salient parts of the code are explained here.
+
+By convention, all the wrapping code is in a script named `app.py`, but this is not a strict requirement and you can give it another name. The `app.py` script does several things: (1) import the necessary code, (2) create a subclass of `ClamsApp` that defines the metadata and provides a method to run the wrapped NLP tool, and (3) provide a way to run the code as a RESTful Flask service. The most salient parts of the code are explained here.
+
+**Imports**.
 
 Aside from a few standard modules we need the following imports:
 
@@ -65,7 +55,7 @@ The third line imports some classes needed to create MMIF files:
 ['Annotation', 'AnnotationProperties', 'Document', 'DocumentProperties', 'Text', 'Mmif', 'View', 'ViewMetadata', 'Contain']
 ```
 
-For non-NLP CLAMS applications we also import `AnnotationTypes` from `mmif.vocabulary`, but this is not needed for NLP applications because they do not need the CLAMS vocabulary. What we do need to import are the URIs of all LAPPS annotation types and the NLP tool itself. 
+For non-NLP CLAMS applications we would also do  `from mmif.vocabulary import AnnotationTypes`, but this is not needed for NLP applications because they do not need the CLAMS vocabulary. What we do need to import are the URIs of all LAPPS annotation types and the NLP tool itself. 
 
 Importing `lapps.discriminators.Uri` is for convenience since it gives us easy acces to the URIs of annotation types and some of their attributes. The following code prints a list of available variables that point to URIs:
 
@@ -77,6 +67,8 @@ Importing `lapps.discriminators.Uri` is for convenience since it gives us easy a
 ANNOTATION CHUNK CONSTITUENT COREF DATE DEPENDENCY DEPENDENCY_STRUCTURE DOCUMENT GENERIC_RELATION LEMMA LOCATION LOOKUP MARKABLE MATCHES NCHUNK NE ORGANIZATION PARAGRAPH PERSON PHRASE_STRUCTURE POS RELATION SEMANTIC_ROLE SENTENCE TOKEN VCHUNK
 ```
 
+**The application class**.
+
 With the imports in place we define a subclass of `ClamsApp` which needs two methods:
 
 ```python
@@ -85,7 +77,7 @@ class TokenizerApp(ClamsApp):
     def _annotate(self, mmif): pass
 ```
 
-Here it is useful to introduce some background. The CLAMS RESTful API connects the GET and POST methods to the `appmetdata()`  and  `annotate()` methods on the app. These methods do not need to be defined here because they are defined on `ClamsApp`. Those two methods are wrappers around  `_appmetadata()` and   `_annotate()` and provide some common functionality like making sure the output is serialized into a string.
+Here it is useful to introduce some background. The CLAMS RESTful API connects the GET and POST methods to the `appmetdata()`  and  `annotate()` methods on the app. These methods do not need to be defined here because they are defined on `ClamsApp`. In essence, those two methods are wrappers around  `_appmetadata()` and   `_annotate()` and provide some common functionality like making sure the output is serialized into a string.
 
 The `_appmetadata()` method defines the metadata for the app:
 
@@ -94,13 +86,12 @@ def _appmetadata(self):
     return {
       "name": "Tokenizer Wrapper",
       "app": 'https://apps.clams.ai/tokenizer',
-      "app_version": "0.0.2",
+      "app_version": "0.0.3",
       "tool_version": "0.1.0",
-      "mmif-version": "0.2.1",
-      "mmif-python-version": "0.2.2",
-      "clams-python-version": "0.2.0",
+      "mmif-version": "0.3.0",
+      "mmif-python-version": "0.3.1",
+      "clams-python-version": "0.2.2",
       "description": "Tokenizes all text documents in a MMIF file.",
-      "vendor": "Team CLAMS",
       "parameters": {},
       "requires": [{'@type': DocumentTypes.TextDocument.value}],
       "produces": [{'@type': Uri.TOKEN}]
@@ -109,12 +100,13 @@ def _appmetadata(self):
 
 At the moment, this is mostly inconsequential because the CLAMS platform does not yet use these metadata, but at some point they will be used to generate an entry in the CLAMS tool shed. There are no strict rules yet on what should be in the metadata and the above is a guesstimate. The only metadata property that is being used is the `app` property, which is added to the view metadata.
 
-The `_annotate()` method always returns an MMIF object and it is where most of the work starts. It is mostly concerned with finding text documents, creating new views and calling the code that runs over the text and inserts the results.
+The `_annotate()` method always returns an MMIF object and it is where most of the work starts. For a text processing app, it is mostly concerned with finding text documents, creating new views and calling the code that runs over the text and inserts the results.
 
 ```python
 def _annotate(self, mmif, **kwargs):
     # reset identifier counts for each annotation
     Identifiers.reset()
+    # Initialize the MMIF object from he string if needed
     self.mmif = mmif if type(mmif) is Mmif else Mmif(mmif)
     # process the text documents in the documents list
     for doc in text_documents(self.mmif.documents):
@@ -129,16 +121,19 @@ def _annotate(self, mmif, **kwargs):
                 for doc in docs:
                     doc_id = view.id + ':' + doc.id
                     self._run_nlp_tool(doc, new_view, doc_id)
-    # always return the MMIF object
+    # return the MMIF object
     return self.mmif
 ```
 
-For language processing applications, one task is to retrieve all text documents from both the documents list and the annotations in all views. Moreover, annotations generated by the NLP tool need to be anchored to those documents, which in the case of text documents in the documents list could simply be to the text document identifier, but which the case of text documents in views also need the view identifier. A view may have many text documents and typically all annotations created will be put in one view. This has two consequences:
+For language processing applications, one task is to retrieve all text documents from both the documents list and the annotations in all views. Moreover, annotations generated by the NLP tool need to be anchored to those documents, which in the case of text documents in the documents list could simply be to the text document identifier, but which the case of text documents in views also need the view identifier. A view may have many text documents and typically all annotations created will be put in one view. 
 
-1.  For each text document from the document list, there is one invocation of `_new_view()` which gets handed a document identifier so it can be put in the view metadata. And for each view with text documents there is also one invocation of `_new_view()`, but no document identifier is handed in so the identifier will not be put into the view metadata.
-2. The method  `_run_nlp_tool()` is responsible for running the NLP tool and adding annotations to the new view. The third argument allows us to anchor annotations created by the tool by handing over the document identifier, possibly prefixed by the view the document lives in.
+For language processing applications, one task is to retrieve all text documents from both the documents list and the views. Annotations generated by the NLP tool need to be anchored to the text documents, which in the case of text documents in the documents list is done by using the text document identifier, but for text documents in views we also need the view identifier. A view may have many text documents and typically all annotations created will be put in one view.
 
-One thing about `_annotate()` is that most likely it will be the same for each NLP application, all the application specific details are in the code that creates new views and the code that adds annotations.
+For each text document from the document list, there is one invocation of `_new_view()` which gets handed a document identifier so it can be put in the view metadata. And for each view with text documents there is also one invocation of `_new_view()`, but no document identifier is handed in so the identifier will not be put into the view metadata.
+
+The method  `_run_nlp_tool()` is responsible for running the NLP tool and adding annotations to the new view. The third argument allows us to anchor annotations created by the tool by handing over the document identifier, possibly prefixed by the view the document lives in.
+
+One thing about `_annotate()` as it is defined above is that it will most likely be the same for each NLP application, all the application specific details are in the code that creates new views and the code that adds annotations.
 
 Creating a new view:
 
@@ -174,6 +169,8 @@ def _run_nlp_tool(self, doc, new_view, full_doc_id):
 
 First, with `_read_text()` we get the text from the text document, either from its `location` property or from its `text`property. Second, we apply the tokenizer to the text. And third, we loop over the token offsets in the tokenizer result and create annotations of type `Uri.TOKEN` with an identfier that is generated using the `Identifiers` class. All that is needed for adding an annotation is the `add_annotation()` method on the view object and the `add_property()` method on the annotation object.
 
+**Running a server**.
+
 Finally, the last three lines of `app.py` will run the tokenizer wrapper as a Flask service:
 
 
@@ -187,9 +184,9 @@ service.run()
 
 ### 3.  Testing the application
 
-There are two simple ways to test the application. The first way is to use the `test.py` script, which will just test the wrapping code without using Flask:
+There are two ways to test the application. The first is to use the `test.py` script, which will just test the wrapping code without using Flask:
 
-```bash
+```
 $> python test.py example-mmif.json out.json
 ```
 
@@ -204,58 +201,103 @@ When you run this the `out.json` file should be about 10K in size and contain pr
 
 The second way tests the behavior of the application in a Flask server by running the application as a service in one terminal:
 
-```bash
+```
 $> python app.py
 ```
 
 And poking at it from another:
 
-```bash
+```
 $> curl http://0.0.0.0:5000/
 $> curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
 ```
 
 The first one prints the metadata and the second the output MMIF file. Appending `?pretty=True` to the last URL will result in pretty printed output.
 
+One note on the example input MMIF file is that it has two documents, a video document and a text document. The text document has the text inline in a text value field. You could also give it a location as follows
+
+```json
+{
+  "@type": "http://mmif.clams.ai/0.2.1/vocabulary/VideoDocument",
+  "properties": {
+    "id": "m1",
+    "mime": "text/plain",
+    "location": "/var/archive/text/example-transcript.mp4"
+}
+```
+
+The location has to be URL or an absolute path and it is your resonsibility to make sure it exists. Note how the video document in the example does define a path which most likely does not exist. This is not hurting us because at no time are we accessing that location.
+
 
 
 ### 4.  Configuration files and Docker
 
-Apps within CLAMS typically run as Docker containers and after an app is tested as a local Flask application it should be dockerized. Four configuration files fir building a DOcker image are part of this example repository:
+Apps within CLAMS typically run as Docker containers and after an app is tested as a local Flask application it should be dockerized. Three configuration files for building a Docker image are part of this example repository:
 
 | file             | description                                                  |
 | ---------------- | :----------------------------------------------------------- |
 | Dockerfile       | Describes how to create a Docker image for this application. |
 | .dockerignore    | Specifies which files are not needed for running this application. |
 | requirements.txt | File with all Python modules that need to be installed.      |
-| config.xml       | Configuration file for Galaxy.                               |
 
 Here is the minimal Dockerfile included with this example:
 
 ```dockerfile
-FROM clamsproject/clams-python:0.2.0
-COPY ./ ./app
+FROM python:3.6-slim-buster
 WORKDIR ./app
+COPY ./requirements.txt .
 RUN pip3 install -r requirements.txt
+COPY ./ ./
 CMD ["python3", "app.py"]
 ```
 
-This starts from the `clamsproject/clams-python:0.2.0` image from [https://hub.docker.com/r/clamsproject/clams-python](https://hub.docker.com/r/clamsproject/clams-python) with is basically created by taking the official `python:3.6-buster` image and pip installing `clams-python:0.2.0`. The Python image used may seem somewhat of an overkill for the simple tokenizer we are using in this example, but it is needed for the Python modules that make CLAMS and MMIF work. 
+This starts from the official `python:3.6-slim--buster` image and pip installs some requirements ( `clams-python==0.2.2` and `lapps==0.0.2`). The Dockerfile only needs to be edited if additional installations are required to run the NLP tool, for extra Python modules you would typically only change the requirements file. This repository also includes a  `.dockerignore`  file. Editing it is optional, but with large repositories with lots of documentation and images you may want to add some file paths just to keep the image as small as possible. 
 
-> As a side note, an earlier version used "CMD python app.py" as the last line. This resulted in cranky shut down behavior where you could not stop the container with Ctrl-c and where "docker stop" took a while with what looked like an exit with code 137, which indicates an out of memory error.
+To build the Docker image you do the following, where the -t option let's you pick a name for the image, you can use another name if you like:
 
-The docker file only needs to be edited if additional installations are required to run the NLP tool. Typically you would change the requirements file since the code in this repository only requires the `lapps` module. Editing `.dockerignore` is optional, but with large repositories with lots of documentation and images you may want to add some file paths just to keep the image as small as possible. Also, the version of `.dockerignore` in this repository ignores the entire `.git` directory, if you need it to live on the image the you should remove the first two lines. 
+```
+$> docker build -t clams-nlp-example .
+```
 
-Finally, here is the Galaxy configuration file.
+To test the Flask app in the container do
+
+```
+$> docker run --rm -it clams-nlp-example bash
+```
+
+You are now running a bash shell in the container (escape out with Ctrl-d) and in the container you can run
+
+```
+root@c85a08b22f18:/app# python3 test.py example-mmif.json out.json 
+```
+
+To test the Flask app in the container do
+
+```
+$> docker run --name clams-nlp-example --rm -d -p 5000:5000 clams-nlp-example
+```
+
+The `--name` option gives a name to the container which we use later to stop it (if we do not name the container then Docker will generate a name and we have to query docker to see what containers are running and then use that name to stop it). Now you can use curl to send requests:
+
+```
+$> curl http://0.0.0.0:5000/
+$> curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
+```
+
+
+
+### 5. The Galaxy configuration file
+
+One of the ways this app can be used is as one of the processing tools in a Galaxy instance ([https://galaxyproject.org/](https://galaxyproject.org/)). For that we need the Galaxy configuration file:
 
 ```xml
 <tool id="clams-tokenizer" name="Simple Tokenizer" version="0.0.3">
   <description>
-    Apply a simple tokenizer to the input file.
+  Apply a simple tokenizer to the input file.
   </description>
   <command interpreter="python3">test.py $input $output</command>
   <inputs>
-      <param name="input" type="data" format="json" label="Input Document"/>
+    <param name="input" type="data" format="json" label="Input Document"/>
   </inputs>
   <outputs>
     <data name="output" format="json" label="Token Annotations"/>
@@ -264,36 +306,7 @@ Finally, here is the Galaxy configuration file.
 </tool>
 ```
 
-All that needs to be edited are lines 1 and 3 and the label properties in lines 7 and 10.
+Typically, all that needs to be edited are lines 1 and 3 (identifier, name, version and description) and the label properties for the input and output in lines 7 and 10.
 
-To build the Docker image you do the following, where the -t option let's you pick a name for the image, you can use another name if you like:
 
-```bash
-$> docker build -t clams-nlp-example .
-```
-
-To test the Flask app in the container do
-
-```bash
-$> docker run --rm -it clams-nlp-example bash
-```
-
-You are now running a bash shell in the container (escape out with Ctrl-d) and in the container you can run
-
-```bash
-$> python3 test.py example-mmif.json out.json 
-```
-
-To test the Flask app in the container do
-
-```bash
-$> docker run --rm -d -p 5000:5000 clams-nlp-example
-```
-
-And now you can use curl to send requests:
-
-```bash
-$> curl http://0.0.0.0:5000/
-$> curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
-```
 

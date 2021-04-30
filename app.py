@@ -6,6 +6,7 @@ Example NLP tool wrapper where the tool is a very simplistic tokenizer.
 
 import os
 import json
+import urllib
 import collections
 
 # Imports needed for CLAMS and MMIF. Note that non-NLP CLAMS applications also
@@ -35,9 +36,9 @@ class TokenizerApp(ClamsApp):
             "app": 'https://apps.clams.ai/tokenizer',
             "app_version": "0.0.3",
             "tool_version": "0.1.0",
-            "mmif-version": "0.2.2",
-            "mmif-python-version": "0.2.2",
-            "clams-python-version": "0.2.0",
+            "mmif-version": "0.3.0",
+            "mmif-python-version": "0.3.1",
+            "clams-python-version": "0.2.2",
             "description": "Apply simple tokenization to all text documents in an MMIF file.",
             "vendor": "Team CLAMS",
             "parameters": {},
@@ -46,7 +47,9 @@ class TokenizerApp(ClamsApp):
         }
 
     def _annotate(self, mmif, **kwargs):
+        # reset identifier counts for each annotation
         Identifiers.reset()
+        # Initialize the MMIF object from he string if needed
         self.mmif = mmif if type(mmif) is Mmif else Mmif(mmif)
         # process the text documents in the documents list
         for doc in text_documents(self.mmif.documents):
@@ -61,7 +64,7 @@ class TokenizerApp(ClamsApp):
                 for doc in docs:
                     doc_id = view.id + ':' + doc.id
                     self._run_nlp_tool(doc, new_view, doc_id)
-        # always return the MMIF object
+        # return the MMIF object
         return self.mmif
 
     def _new_view(self, docid=None):
@@ -74,8 +77,8 @@ class TokenizerApp(ClamsApp):
     def _read_text(self, textdoc):
         """Read the text content from the document or the text value."""
         if textdoc.location:
-            with open(textdoc.location) as fh:
-                text = fh.read()
+            fh = urllib.request.urlopen(textdoc.location)
+            text = fh.read().decode('utf8')
         else:
             text = textdoc.properties.text.value
         return text

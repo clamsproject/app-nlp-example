@@ -1,8 +1,14 @@
-FROM clamsproject/clams-python:0.2.0
+FROM python:3.6-slim-buster
 
-COPY ./ ./app
+# Used for debugging only, can be removed to save space
+RUN apt-get -y update && apt-get -y install curl vim
+
 WORKDIR ./app
 
+COPY ./requirements.txt .
+
 RUN pip3 install -r requirements.txt
+
+COPY ./ ./
 
 CMD ["python3", "app.py"]
