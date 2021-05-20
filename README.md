@@ -5,7 +5,7 @@ This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS applic
 When building this application you need Python 3.6 or higher and install some modules:
 
 ```
-$> pip install clams-python==0.2.2
+$> pip install clams-python==0.2.4
 $> pip install lapps==0.0.2
 ```
 
@@ -30,11 +30,9 @@ def tokenize(text):
 
 ### 2.  Wrapping the tokenizer
 
-By convention, all the wrapping code is in a script named `app.py`, but this is not a strict requirement. It does several things: (1) it imports the necessary code, (2) it creates a subclass of `ClamsApp` that defines the metadata and provides a method to run the wrapped NLP tool, and (3) it provides a way to run the code as a RESTFul Flask service. The most salient parts of the code are explained here.
-
 By convention, all the wrapping code is in a script named `app.py`, but this is not a strict requirement and you can give it another name. The `app.py` script does several things: (1) import the necessary code, (2) create a subclass of `ClamsApp` that defines the metadata and provides a method to run the wrapped NLP tool, and (3) provide a way to run the code as a RESTful Flask service. The most salient parts of the code are explained here.
 
-**Imports**.
+**Imports**
 
 Aside from a few standard modules we need the following imports:
 
@@ -67,7 +65,7 @@ Importing `lapps.discriminators.Uri` is for convenience since it gives us easy a
 ANNOTATION CHUNK CONSTITUENT COREF DATE DEPENDENCY DEPENDENCY_STRUCTURE DOCUMENT GENERIC_RELATION LEMMA LOCATION LOOKUP MARKABLE MATCHES NCHUNK NE ORGANIZATION PARAGRAPH PERSON PHRASE_STRUCTURE POS RELATION SEMANTIC_ROLE SENTENCE TOKEN VCHUNK
 ```
 
-**The application class**.
+**The application class**
 
 With the imports in place we define a subclass of `ClamsApp` which needs two methods:
 
@@ -85,12 +83,12 @@ The `_appmetadata()` method defines the metadata for the app:
 def _appmetadata(self):
     return {
       "name": "Tokenizer Wrapper",
-      "app": 'https://apps.clams.ai/tokenizer',
-      "app_version": "0.0.3",
+      "iri": 'https://apps.clams.ai/tokenizer',
+      "app_version": "0.0.4",
       "tool_version": "0.1.0",
-      "mmif-version": "0.3.0",
-      "mmif-python-version": "0.3.1",
-      "clams-python-version": "0.2.2",
+      "mmif-version": "0.3.1",
+      "mmif-python-version": "0.3.3",
+      "clams-python-version": "0.2.4",
       "description": "Tokenizes all text documents in a MMIF file.",
       "parameters": {},
       "requires": [{'@type': DocumentTypes.TextDocument.value}],
@@ -169,7 +167,7 @@ def _run_nlp_tool(self, doc, new_view, full_doc_id):
 
 First, with `_read_text()` we get the text from the text document, either from its `location` property or from its `text`property. Second, we apply the tokenizer to the text. And third, we loop over the token offsets in the tokenizer result and create annotations of type `Uri.TOKEN` with an identfier that is generated using the `Identifiers` class. All that is needed for adding an annotation is the `add_annotation()` method on the view object and the `add_property()` method on the annotation object.
 
-**Running a server**.
+**Running a server**
 
 Finally, the last three lines of `app.py` will run the tokenizer wrapper as a Flask service:
 
@@ -218,7 +216,7 @@ One note on the example input MMIF file is that it has two documents, a video do
 
 ```json
 {
-  "@type": "http://mmif.clams.ai/0.2.1/vocabulary/VideoDocument",
+  "@type": "http://mmif.clams.ai/0.3.1/vocabulary/VideoDocument",
   "properties": {
     "id": "m1",
     "mime": "text/plain",
@@ -251,7 +249,7 @@ COPY ./ ./
 CMD ["python3", "app.py"]
 ```
 
-This starts from the official `python:3.6-slim--buster` image and pip installs some requirements ( `clams-python==0.2.2` and `lapps==0.0.2`). The Dockerfile only needs to be edited if additional installations are required to run the NLP tool, for extra Python modules you would typically only change the requirements file. This repository also includes a  `.dockerignore`  file. Editing it is optional, but with large repositories with lots of documentation and images you may want to add some file paths just to keep the image as small as possible. 
+This starts from the official `python:3.6-slim--buster` image and pip installs some requirements ( `clams-python==0.2.4` and `lapps==0.0.2`). The Dockerfile only needs to be edited if additional installations are required to run the NLP tool, for extra Python modules you would typically only change the requirements file. This repository also includes a  `.dockerignore`  file. Editing it is optional, but with large repositories with lots of documentation and images you may want to add some file paths just to keep the image as small as possible.
 
 To build the Docker image you do the following, where the -t option let's you pick a name for the image, you can use another name if you like:
 
@@ -291,7 +289,7 @@ $> curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.
 One of the ways this app can be used is as one of the processing tools in a Galaxy instance ([https://galaxyproject.org/](https://galaxyproject.org/)). For that we need the Galaxy configuration file:
 
 ```xml
-<tool id="clams-tokenizer" name="Simple Tokenizer" version="0.0.3">
+<tool id="clams-tokenizer" name="Simple Tokenizer" version="0.0.4">
   <description>
   Apply a simple tokenizer to the input file.
   </description>

@@ -32,13 +32,13 @@ class TokenizerApp(ClamsApp):
 
     def _appmetadata(self):
         return {
-            "name": "Tokenizer Wrapper",
-            "app": 'https://apps.clams.ai/tokenizer',
-            "app_version": "0.0.3",
+            "name": "Simplistic Tokenizer",
+            "iri": 'https://apps.clams.ai/tokenizer',
+            "app_version": "0.0.4",
             "tool_version": "0.1.0",
-            "mmif-version": "0.3.0",
-            "mmif-python-version": "0.3.1",
-            "clams-python-version": "0.2.2",
+            "mmif-version": "0.3.1",
+            "mmif-python-version": "0.3.3",
+            "clams-python-version": "0.2.4",
             "description": "Apply simple tokenization to all text documents in an MMIF file.",
             "vendor": "Team CLAMS",
             "parameters": {},
@@ -69,7 +69,7 @@ class TokenizerApp(ClamsApp):
 
     def _new_view(self, docid=None):
         view = self.mmif.new_view()
-        view.metadata.app = self.metadata['app']
+        view.metadata.app = self.metadata['iri']
         properties = {} if docid is None else {'document': docid}
         view.new_contain(Uri.TOKEN, properties)
         return view
