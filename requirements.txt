@@ -1,2 +1,2 @@
 lapps==0.0.2
-clams-python==0.2.2
+clams-python==0.2.4
