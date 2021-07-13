@@ -5,15 +5,15 @@ This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS applic
 When building this application you need Python 3.6 or higher and install some modules:
 
 ```
-$> pip install clams-python==0.2.4
-$> pip install lapps==0.0.2
+$ pip install clams-python==0.4.3
+$ pip install lapps==0.0.2
 ```
 
 The first line installs the CLAMS Python interface, which in turn installs the Python interface to the MMIF format and some third party modules like Flask. The second line adds the LAPPS Python interface, which is not included in `clams-python` because the LAPPS interface is only relevant for text processing apps.
 
 ### 1.  The NLP tool
 
-We use a simple tokenizer in `tokenizer.py` as the example NLP tool. All it does is to define a tokenize function that uses a simple regular expression and returns a list of offset pairs.
+We use a simple tokenizer in `tokenizer.py` as the example NLP tool. All it does is define a tokenize function that uses a simple regular expression and returns a list of offset pairs.
 
 ```python {.line-numbers}
 def tokenize(text):
@@ -39,6 +39,7 @@ Aside from a few standard modules we need the following imports:
 ```python
 from clams.app import ClamsApp
 from clams.restify import Restifier
+from clams.appmetadata import AppMetadata
 from mmif.serialize import *
 from mmif.vocabulary import DocumentTypes
 from lapps.discriminators import Uri
@@ -75,28 +76,27 @@ class TokenizerApp(ClamsApp):
     def _annotate(self, mmif): pass
 ```
 
-Here it is useful to introduce some background. The CLAMS RESTful API connects the GET and POST methods to the `appmetdata()`  and  `annotate()` methods on the app. These methods do not need to be defined here because they are defined on `ClamsApp`. In essence, those two methods are wrappers around  `_appmetadata()` and   `_annotate()` and provide some common functionality like making sure the output is serialized into a string.
+Here it is useful to introduce some background. The CLAMS RESTful API connects the GET and POST methods to the `appmetdata()`  and  `annotate()` methods on the app, and those methods are both defined on `ClamsApp`. In essence, they are wrappers around  `_appmetadata()` and   `_annotate()` and provide some common functionality like making sure the output is serialized into a string.
 
 The `_appmetadata()` method defines the metadata for the app:
 
 ```python
 def _appmetadata(self):
-    return {
-      "name": "Tokenizer Wrapper",
-      "iri": 'https://apps.clams.ai/tokenizer',
-      "app_version": "0.0.4",
-      "tool_version": "0.1.0",
-      "mmif-version": "0.3.1",
-      "mmif-python-version": "0.3.3",
-      "clams-python-version": "0.2.4",
-      "description": "Tokenizes all text documents in a MMIF file.",
-      "parameters": {},
-      "requires": [{'@type': DocumentTypes.TextDocument.value}],
-      "produces": [{'@type': Uri.TOKEN}]
-    }
+    self.metadata = AppMetadata(
+        identifier="https://apps.clams.ai/simple_tokenizer",
+        name="Simplistic Tokenizer",
+        description="Apply simple tokenization to all text documents in an MMIF file.",
+        app_version=VERSION,
+        wrappee_version=TOKENIZER_VERSION,
+        mmif_version=MMIF_VERSION,
+        license='Apache 2.0',
+        wrappee_license='Apache 2.0')
+    self.metadata.add_input(DocumentTypes.TextDocument)
+    self.metadata.add_output(Uri.TOKEN)
+    return self.metadata
 ```
 
-At the moment, this is mostly inconsequential because the CLAMS platform does not yet use these metadata, but at some point they will be used to generate an entry in the CLAMS tool shed. There are no strict rules yet on what should be in the metadata and the above is a guesstimate. The only metadata property that is being used is the `app` property, which is added to the view metadata.
+At the moment, much of this is inconsequential because the CLAMS platform does not yet use all these metadata, but at some point they will be used to generate an entry in the CLAMS tool shed. The most important property now is the `identfier` property, which is used to sign a new view created by an application. There are strict rules yet on what can be in the metadata and properties are defined in the `AppMetadata` class in https://github.com/clamsproject/clams-python/blob/master/clams/appmetadata/__init__.py. The `add_input()` and `add_output()` methods allow you to specify the kind of input that is required and the output annotations generated. The way this works is still somewhat informal.
 
 The `_annotate()` method always returns an MMIF object and it is where most of the work starts. For a text processing app, it is mostly concerned with finding text documents, creating new views and calling the code that runs over the text and inserts the results.
 
@@ -116,9 +116,9 @@ def _annotate(self, mmif, **kwargs):
         docs = self.mmif.get_documents_in_view(view.id)
         if docs:
             new_view = self._new_view()
-                for doc in docs:
-                    doc_id = view.id + ':' + doc.id
-                    self._run_nlp_tool(doc, new_view, doc_id)
+            for doc in docs:
+                doc_id = view.id + ':' + doc.id
+                self._run_nlp_tool(doc, new_view, doc_id)
     # return the MMIF object
     return self.mmif
 ```
@@ -138,9 +138,8 @@ Creating a new view:
 ```python
 def _new_view(self, docid=None):
     view = self.mmif.new_view()
-    view.metadata.app = self.metadata['app']
-    properties = {} if docid is None else {'document': docid}
-    view.new_contain(Uri.TOKEN, properties)
+    self.sign_view(view)
+    view.new_contain(Uri.TOKEN, document=docid)
     return view
 ```
 
@@ -169,13 +168,29 @@ First, with `_read_text()` we get the text from the text document, either from i
 
 **Running a server**
 
-Finally, the last three lines of `app.py` will run the tokenizer wrapper as a Flask service:
+To run the application as a Flask server use the `run()` method:
 
 
 ```python
-app = TokenizerApp()
-service = Restifier(app)
-service.run()
+tokenizer_app = TokenizerApp()
+tokenizer_service = Restifier(tokenizer_app)
+tokenizer_service.run()
+```
+
+And to run it in produciton mode using `gunicorn` use the `serve_production()` method:
+
+
+```python
+tokenizer_app = TokenizerApp()
+tokenizer_service = Restifier(tokenizer_app)
+tokenizer_service.serve_production()
+```
+
+On the command line these correspond to the following two invocations:
+
+```
+$ python app.py --develop
+$ python app.py
 ```
 
 
@@ -185,7 +200,7 @@ service.run()
 There are two ways to test the application. The first is to use the `test.py` script, which will just test the wrapping code without using Flask:
 
 ```
-$> python test.py example-mmif.json out.json
+$ python test.py example-mmif.json out.json
 ```
 
 When you run this the `out.json` file should be about 10K in size and contain pretty printed JSON. And at the same time something like the following should be printed to the standard output:
@@ -200,14 +215,14 @@ When you run this the `out.json` file should be about 10K in size and contain pr
 The second way tests the behavior of the application in a Flask server by running the application as a service in one terminal:
 
 ```
-$> python app.py
+$> python app.py --develop
 ```
 
 And poking at it from another:
 
 ```
-$> curl http://0.0.0.0:5000/
-$> curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
+$ curl http://0.0.0.0:5000/
+$ curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
 ```
 
 The first one prints the metadata and the second the output MMIF file. Appending `?pretty=True` to the last URL will result in pretty printed output.
@@ -254,13 +269,13 @@ This starts from the official `python:3.6-slim--buster` image and pip installs s
 To build the Docker image you do the following, where the -t option let's you pick a name for the image, you can use another name if you like:
 
 ```
-$> docker build -t clams-nlp-example .
+$ docker build -t clams-nlp-example .
 ```
 
 To test the Flask app in the container do
 
 ```
-$> docker run --rm -it clams-nlp-example bash
+$ docker run --rm -it clams-nlp-example bash
 ```
 
 You are now running a bash shell in the container (escape out with Ctrl-d) and in the container you can run
@@ -272,14 +287,21 @@ root@c85a08b22f18:/app# python3 test.py example-mmif.json out.json
 To test the Flask app in the container do
 
 ```
-$> docker run --name clams-nlp-example --rm -d -p 5000:5000 clams-nlp-example
+$ docker run --name clams-nlp-example --rm -d -p 5000:5000 clams-nlp-example
 ```
 
 The `--name` option gives a name to the container which we use later to stop it (if we do not name the container then Docker will generate a name and we have to query docker to see what containers are running and then use that name to stop it). Now you can use curl to send requests:
 
 ```
-$> curl http://0.0.0.0:5000/
-$> curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
+$ curl http://0.0.0.0:5000/
+$ curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
+```
+
+Note that the minimal Dockerfile creates a Docker image with a production server using Gunicorn, use `Dockerfile.develop` if you want to run a development server using Flask.
+
+```
+$ docker build -t clams-nlp-example-dev -f Dockerfile.develop .
+$ docker run --name clams-nlp-example-dev --rm -d -p 5000:5000 clams-nlp-example-dev
 ```
 
 

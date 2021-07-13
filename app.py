@@ -7,6 +7,7 @@ Example NLP tool wrapper where the tool is a very simplistic tokenizer.
 import os
 import json
 import urllib
+import argparse
 import collections
 
 # Imports needed for CLAMS and MMIF. Note that non-NLP CLAMS applications also
@@ -14,7 +15,8 @@ import collections
 # applications.
 from clams.app import ClamsApp
 from clams.restify import Restifier
-from mmif.serialize import *
+from clams.appmetadata import AppMetadata
+from mmif.serialize import Mmif
 from mmif.vocabulary import DocumentTypes
 
 # For an NLP tool we need to import the LAPPS vocabulary items
@@ -24,30 +26,47 @@ from lapps.discriminators import Uri
 # Import the NLP tool. The NLP tool code may also be embedded in this script.
 import tokenizer
 
+# Making version dependencies explicit. Some, but not yet all, of these are
+# added to the metadata of the application.
+VERSION = '0.0.5'
+MMIF_VERSION = '0.4.0'
+MMIF_PYTHON_VERSION = '0.4.4'
+CLAMS_PYTHON_VERSION = '0.4.3'
+TOKENIZER_VERSION = tokenizer.__VERSION__
+
 # We use this to find the text documents in the documents list
-TEXT_DOCUMENT = os.path.basename(DocumentTypes.TextDocument.value)
+TEXT_DOCUMENT = os.path.basename(str(DocumentTypes.TextDocument))
+
 
 
 class TokenizerApp(ClamsApp):
 
     def _appmetadata(self):
-        return {
-            "name": "Simplistic Tokenizer",
-            "iri": 'https://apps.clams.ai/tokenizer',
-            "app_version": "0.0.4",
-            "tool_version": "0.1.0",
-            "mmif-version": "0.3.1",
-            "mmif-python-version": "0.3.3",
-            "clams-python-version": "0.2.4",
-            "description": "Apply simple tokenization to all text documents in an MMIF file.",
-            "vendor": "Team CLAMS",
-            "parameters": {},
-            "requires": [{'@type': DocumentTypes.TextDocument.value}],
-            "produces": [{'@type': Uri.TOKEN}]
-        }
+
+        # MMIF_PYTHON_VERSION
+        # CLAMS_PYTHON_VERSION
+
+        self.metadata = AppMetadata(
+            identifier="https://apps.clams.ai/simple_tokenizer",
+            name="Simplistic Tokenizer",
+            description="Apply simple tokenization to all text documents in an MMIF file.",
+            app_version=VERSION,
+            wrappee_version=TOKENIZER_VERSION,
+            mmif_version=MMIF_VERSION,
+            license='Apache 2.0',
+            wrappee_license='Apache 2.0'
+        )
+        self.metadata.add_input(DocumentTypes.TextDocument)
+        self.metadata.add_output(Uri.TOKEN)
+        return self.metadata
 
     def _annotate(self, mmif, **kwargs):
-        # reset identifier counts for each annotation
+        print(type(self.appmetadata()), self.appmetadata())
+        print(type(self._appmetadata()), self._appmetadata())
+        print(AppMetadata.schema_json(indent=2))
+        if 'error' in kwargs:
+            raise Exception(kwargs['error'])
+        # reset identifier counts for each annotation category
         Identifiers.reset()
         # Initialize the MMIF object from he string if needed
         self.mmif = mmif if type(mmif) is Mmif else Mmif(mmif)
@@ -69,9 +88,8 @@ class TokenizerApp(ClamsApp):
 
     def _new_view(self, docid=None):
         view = self.mmif.new_view()
-        view.metadata.app = self.metadata['iri']
-        properties = {} if docid is None else {'document': docid}
-        view.new_contain(Uri.TOKEN, properties)
+        self.sign_view(view)
+        view.new_contain(Uri.TOKEN, document=docid)
         return view
 
     def _read_text(self, textdoc):
@@ -90,7 +108,7 @@ class TokenizerApp(ClamsApp):
         text = self._read_text(doc)
         tokens = tokenizer.tokenize(text)
         for p1, p2 in tokens:
-            a = new_view.new_annotation(Identifiers.new("t"), Uri.TOKEN)
+            a = new_view.new_annotation(Uri.TOKEN, Identifiers.new("t"))
             # no need to do this for documents in the documents list
             if ':' in full_doc_id:
                 a.add_property('document', full_doc_id)
@@ -101,7 +119,7 @@ class TokenizerApp(ClamsApp):
 
 def text_documents(documents):
     """Utility method to get all text documents from a list of documents."""
-    return [doc for doc in documents if doc.at_type.endswith(TEXT_DOCUMENT)]
+    return [doc for doc in documents if str(doc.at_type).endswith(TEXT_DOCUMENT)]
 
 
 class Identifiers(object):
@@ -125,6 +143,14 @@ class Identifiers(object):
 
 if __name__ == "__main__":
 
-    app = TokenizerApp()
-    service = Restifier(app)
-    service.run()
+    tokenizer_app = TokenizerApp()
+    tokenizer_service = Restifier(tokenizer_app)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--develop',  action='store_true')
+    args = parser.parse_args()
+
+    if args.develop:
+        tokenizer_service.run()
+    else:
+        tokenizer_service.serve_production()
