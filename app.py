@@ -30,7 +30,7 @@ import tokenizer
 # added to the metadata of the application.
 VERSION = '0.0.5'
 MMIF_VERSION = '0.4.0'
-MMIF_PYTHON_VERSION = '0.4.4'
+MMIF_PYTHON_VERSION = '0.4.5'
 CLAMS_PYTHON_VERSION = '0.4.4'
 TOKENIZER_VERSION = tokenizer.__VERSION__
 
