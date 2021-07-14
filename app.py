@@ -31,7 +31,7 @@ import tokenizer
 VERSION = '0.0.5'
 MMIF_VERSION = '0.4.0'
 MMIF_PYTHON_VERSION = '0.4.4'
-CLAMS_PYTHON_VERSION = '0.4.3'
+CLAMS_PYTHON_VERSION = '0.4.4'
 TOKENIZER_VERSION = tokenizer.__VERSION__
 
 # We use this to find the text documents in the documents list
