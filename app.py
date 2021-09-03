@@ -14,7 +14,8 @@ import collections
 # applications.
 from clams.app import ClamsApp
 from clams.restify import Restifier
-from mmif.serialize import *
+from clams.appmetadata import AppMetadata
+from mmif.serialize import Mmif
 from mmif.vocabulary import DocumentTypes
 
 # For an NLP tool we need to import the LAPPS vocabulary items
@@ -25,28 +26,41 @@ from lapps.discriminators import Uri
 import tokenizer
 
 # We use this to find the text documents in the documents list
-TEXT_DOCUMENT = os.path.basename(DocumentTypes.TextDocument.value)
+TEXT_DOCUMENT = os.path.basename(str(DocumentTypes.TextDocument))
+
+
+APP_VERSION = '0.0.5'
+APP_LICENSE = 'Apache 2.0'
+MMIF_VERSION = '0.4.0'
+MMIF_PYTHON_VERSION = '0.4.5'
+CLAMS_PYTHON_VERSION = '0.5.0'
+TOKENIZER_VERSION = '3.0.3'
+TOKENIZER_LICENSE = 'Apache 2.0'
 
 
 class TokenizerApp(ClamsApp):
 
     def _appmetadata(self):
-        return {
-            "name": "Simplistic Tokenizer",
-            "iri": 'https://apps.clams.ai/tokenizer',
-            "app_version": "0.0.4",
-            "tool_version": "0.1.0",
-            "mmif-version": "0.3.1",
-            "mmif-python-version": "0.3.3",
-            "clams-python-version": "0.2.4",
-            "description": "Apply simple tokenization to all text documents in an MMIF file.",
-            "vendor": "Team CLAMS",
-            "parameters": {},
-            "requires": [{'@type': DocumentTypes.TextDocument.value}],
-            "produces": [{'@type': Uri.TOKEN}]
-        }
+        metadata = AppMetadata(
+            identifier='https://apps.clams.ai/tokenizer',
+            url='https://github.com/clamsproject/app-nlp-example',
+            name="Simplistic Tokenizer",
+            description="Apply simple tokenization to all text documents in an MMIF file.",
+            app_version=APP_VERSION,
+            app_license=APP_LICENSE,
+            analyzer_version=TOKENIZER_VERSION,
+            analyzer_license=TOKENIZER_LICENSE,
+            mmif_version=MMIF_VERSION
+        )
+        metadata.add_input(DocumentTypes.TextDocument)
+        metadata.add_output(Uri.TOKEN)
+        return metadata
 
     def _annotate(self, mmif, **kwargs):
+        # some example code to show how to use arguments, here to willy-nilly
+        # throw an error if the caller wants that
+        if 'error' in kwargs:
+            raise Exception("Exception - %s" % kwargs['error'])
         # reset identifier counts for each annotation
         Identifiers.reset()
         # Initialize the MMIF object from he string if needed
@@ -69,9 +83,8 @@ class TokenizerApp(ClamsApp):
 
     def _new_view(self, docid=None):
         view = self.mmif.new_view()
-        view.metadata.app = self.metadata['iri']
-        properties = {} if docid is None else {'document': docid}
-        view.new_contain(Uri.TOKEN, properties)
+        view.metadata.app = self.metadata.identifier
+        view.new_contain(Uri.TOKEN, document=docid)
         return view
 
     def _read_text(self, textdoc):
@@ -90,7 +103,7 @@ class TokenizerApp(ClamsApp):
         text = self._read_text(doc)
         tokens = tokenizer.tokenize(text)
         for p1, p2 in tokens:
-            a = new_view.new_annotation(Identifiers.new("t"), Uri.TOKEN)
+            a = new_view.new_annotation(Uri.TOKEN, Identifiers.new("t"))
             # no need to do this for documents in the documents list
             if ':' in full_doc_id:
                 a.add_property('document', full_doc_id)
@@ -101,7 +114,7 @@ class TokenizerApp(ClamsApp):
 
 def text_documents(documents):
     """Utility method to get all text documents from a list of documents."""
-    return [doc for doc in documents if doc.at_type.endswith(TEXT_DOCUMENT)]
+    return [doc for doc in documents if str(doc.at_type).endswith(TEXT_DOCUMENT)]
 
 
 class Identifiers(object):
