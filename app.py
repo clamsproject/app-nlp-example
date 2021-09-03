@@ -7,6 +7,7 @@ Example NLP tool wrapper where the tool is a very simplistic tokenizer.
 import os
 import json
 import urllib
+import argparse
 import collections
 
 # Imports needed for CLAMS and MMIF. Note that non-NLP CLAMS applications also
@@ -24,6 +25,14 @@ from lapps.discriminators import Uri
 
 # Import the NLP tool. The NLP tool code may also be embedded in this script.
 import tokenizer
+
+# Making version dependencies explicit. Some, but not yet all, of these are
+# added to the metadata of the application.
+VERSION = '0.0.5'
+MMIF_VERSION = '0.4.0'
+MMIF_PYTHON_VERSION = '0.4.5'
+CLAMS_PYTHON_VERSION = '0.4.4'
+TOKENIZER_VERSION = tokenizer.__VERSION__
 
 # We use this to find the text documents in the documents list
 TEXT_DOCUMENT = os.path.basename(str(DocumentTypes.TextDocument))
@@ -84,6 +93,7 @@ class TokenizerApp(ClamsApp):
     def _new_view(self, docid=None):
         view = self.mmif.new_view()
         view.metadata.app = self.metadata.identifier
+        self.sign_view(view)
         view.new_contain(Uri.TOKEN, document=docid)
         return view
 
@@ -138,6 +148,14 @@ class Identifiers(object):
 
 if __name__ == "__main__":
 
-    app = TokenizerApp()
-    service = Restifier(app)
-    service.run()
+    tokenizer_app = TokenizerApp()
+    tokenizer_service = Restifier(tokenizer_app)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--develop',  action='store_true')
+    args = parser.parse_args()
+
+    if args.develop:
+        tokenizer_service.run()
+    else:
+        tokenizer_service.serve_production()

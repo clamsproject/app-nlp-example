@@ -12,7 +12,7 @@ This installs the CLAMS Python interface, which in turn installs the Python inte
 
 ### 1.  The NLP tool
 
-We use a simple tokenizer in `tokenizer.py` as the example NLP tool. All it does is to define a tokenize function that uses a simple regular expression and returns a list of offset pairs.
+We use a simple tokenizer in `tokenizer.py` as the example NLP tool. All it does is define a tokenize function that uses a simple regular expression and returns a list of offset pairs.
 
 ```python {.line-numbers}
 def tokenize(text):
@@ -69,7 +69,7 @@ class TokenizerApp(ClamsApp):
     def _annotate(self, mmif): pass
 ```
 
-Here it is useful to introduce some background. The CLAMS RESTful API connects the GET and POST methods to the `appmetdata()`  and  `annotate()` methods on the app. These methods do not need to be defined here because they are defined on `ClamsApp`. In essence, those two methods are wrappers around  `_appmetadata()` and   `_annotate()` and provide some common functionality like making sure the output is serialized into a string.
+Here it is useful to introduce some background. The CLAMS RESTful API connects the GET and POST methods to the `appmetdata()`  and  `annotate()` methods on the app, and those methods are both defined on `ClamsApp`. In essence, they are wrappers around  `_appmetadata()` and   `_annotate()` and provide some common functionality like making sure the output is serialized into a string.
 
 The `_appmetadata()` method defines the metadata for the app:
 
@@ -123,9 +123,9 @@ def _annotate(self, mmif, **kwargs):
         docs = self.mmif.get_documents_in_view(view.id)
         if docs:
             new_view = self._new_view()
-                for doc in docs:
-                    doc_id = view.id + ':' + doc.id
-                    self._run_nlp_tool(doc, new_view, doc_id)
+            for doc in docs:
+                doc_id = view.id + ':' + doc.id
+                self._run_nlp_tool(doc, new_view, doc_id)
     # return the MMIF object
     return self.mmif
 ```
@@ -144,6 +144,7 @@ Creating a new view:
 def _new_view(self, docid=None):
     view = self.mmif.new_view()
     view.metadata.app = self.metadata.identifier
+    self.sign_view(view)
     view.new_contain(Uri.TOKEN, document=docid)
     return view
 ```
@@ -173,13 +174,29 @@ First, with `_read_text()` we get the text from the text document, either from i
 
 **Running a server**
 
-Finally, the last three lines of `app.py` will run the tokenizer wrapper as a Flask service:
+To run the application as a Flask server use the `run()` method:
 
 
 ```python
-app = TokenizerApp()
-service = Restifier(app)
-service.run()
+tokenizer_app = TokenizerApp()
+tokenizer_service = Restifier(tokenizer_app)
+tokenizer_service.run()
+```
+
+And to run it in produciton mode using `gunicorn` use the `serve_production()` method:
+
+
+```python
+tokenizer_app = TokenizerApp()
+tokenizer_service = Restifier(tokenizer_app)
+tokenizer_service.serve_production()
+```
+
+On the command line these correspond to the following two invocations:
+
+```
+$ python app.py --develop
+$ python app.py
 ```
 
 This is for a development server, in case you want to start a production server use `serve_production()` instead of `run()`.
@@ -204,7 +221,7 @@ When you run this the `out.json` file should be about 10K in size and contain pr
 The second way tests the behavior of the application in a Flask server by running the application as a service in one terminal:
 
 ```
-$> python app.py
+$ python app.py --develop
 ```
 
 And poking at it from another:
@@ -214,7 +231,7 @@ $ curl http://0.0.0.0:5000/
 $ curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
 ```
 
-The first one prints the metadata and the second the output MMIF file. Appending `?pretty=True` to the last URL will result in pretty printed output.
+The first one prints the metadata and the second the output MMIF file. Appending `?pretty=True` to the last URL will result in pretty printed output. Note that with the `--develop` option we started a Flask development server, without the option a production server will be started.
 
 One note on the example input MMIF file is that it has two documents, a video document and a text document. The text document has the text inline in a text value field. You could also give it a location as follows
 
@@ -286,4 +303,10 @@ $ curl http://0.0.0.0:5000/
 $ curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
 ```
 
+Note that the minimal Dockerfile creates a Docker image with a production server using Gunicorn, use `Dockerfile.develop` if you want to run a development server using Flask.
+
+```
+$ docker build -t clams-nlp-example-dev -f Dockerfile.develop .
+$ docker run --name clams-nlp-example-dev --rm -d -p 5000:5000 clams-nlp-example-dev
+```
 
