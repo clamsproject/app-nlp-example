@@ -28,23 +28,17 @@ import tokenizer
 
 # Making version dependencies explicit. Some, but not yet all, of these are
 # added to the metadata of the application.
-VERSION = '0.0.5'
-MMIF_VERSION = '0.4.0'
-MMIF_PYTHON_VERSION = '0.4.5'
-CLAMS_PYTHON_VERSION = '0.4.4'
-TOKENIZER_VERSION = tokenizer.__VERSION__
-
-# We use this to find the text documents in the documents list
-TEXT_DOCUMENT = os.path.basename(str(DocumentTypes.TextDocument))
-
-
 APP_VERSION = '0.0.5'
-APP_LICENSE = 'Apache 2.0'
 MMIF_VERSION = '0.4.0'
 MMIF_PYTHON_VERSION = '0.4.5'
 CLAMS_PYTHON_VERSION = '0.5.0'
-TOKENIZER_VERSION = '3.0.3'
+TOKENIZER_VERSION = tokenizer.__VERSION__
+
+APP_LICENSE = 'Apache 2.0'
 TOKENIZER_LICENSE = 'Apache 2.0'
+
+# We use this to find the text documents in the documents list
+TEXT_DOCUMENT = os.path.basename(str(DocumentTypes.TextDocument))
 
 
 class TokenizerApp(ClamsApp):
@@ -54,7 +48,7 @@ class TokenizerApp(ClamsApp):
             identifier='https://apps.clams.ai/tokenizer',
             url='https://github.com/clamsproject/app-nlp-example',
             name="Simplistic Tokenizer",
-            description="Apply simple tokenization to all text documents in an MMIF file.",
+            description="Example application that runs simple tokenization on all text documents in an MMIF file.",
             app_version=APP_VERSION,
             app_license=APP_LICENSE,
             analyzer_version=TOKENIZER_VERSION,
