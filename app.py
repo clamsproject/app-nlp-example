@@ -28,7 +28,7 @@ import tokenizer
 
 # Making version dependencies explicit. Some, but not yet all, of these are
 # added to the metadata of the application.
-APP_VERSION = '0.0.5'
+APP_VERSION = '0.0.6'
 MMIF_VERSION = '0.4.0'
 MMIF_PYTHON_VERSION = '0.4.5'
 CLAMS_PYTHON_VERSION = '0.5.0'
@@ -57,13 +57,17 @@ class TokenizerApp(ClamsApp):
         )
         metadata.add_input(DocumentTypes.TextDocument)
         metadata.add_output(Uri.TOKEN)
+        metadata.add_parameter('error', 'Throw error if set to True', 'boolean')
+        metadata.add_parameter('eol', 'Insert sentence boundaries', 'boolean')
         return metadata
 
     def _annotate(self, mmif, **kwargs):
-        # some example code to show how to use arguments, here to willy-nilly
-        # throw an error if the caller wants that
-        if 'error' in kwargs:
-            raise Exception("Exception - %s" % kwargs['error'])
+        # some example code to show how to access paramyters, here to just print
+        # them and to willy-nilly throw an error if the caller wants that
+        for arg, val in kwargs.items():
+            print("Parameter %s=%s" % (arg, val))
+            if arg == 'error' and val is True:
+                raise Exception("Exception - %s" % kwargs['error'])
         # reset identifier counts for each annotation
         Identifiers.reset()
         # Initialize the MMIF object from he string if needed

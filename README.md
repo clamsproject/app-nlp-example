@@ -1,6 +1,6 @@
 # Wrapping an NLP Application
 
-This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS application. This may not make a lot of sense without glancing over recent MMIF specifications at [https://mmif.clams.ai/](https://mmif.clams.ai/). The example in here is for CLAMS version 0.5.0 from July 2021.
+This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS application. This may not make a lot of sense without glancing over recent MMIF specifications at [https://mmif.clams.ai/](https://mmif.clams.ai/). The example in here is for CLAMS version 0.5.0 from July 2021 and version 0.0.6 of the application.
 
 When building this application you need Python 3.6 or higher and install some modules, preferably in a clean Python virtual environment:
 
@@ -77,7 +77,7 @@ def _appmetadata(self):
         identifier='https://apps.clams.ai/tokenizer',
         url='https://github.com/clamsproject/app-nlp-example',
         name="Simplistic Tokenizer",
-        description="Apply simple tokenization to all text documents in an MMIF file.",
+        description="Apply simple tokenization to all text documents in a MMIF file.",
         app_version=APP_VERSION,
         app_license=APP_LICENSE,
         analyzer_version=TOKENIZER_VERSION,
@@ -86,13 +86,15 @@ def _appmetadata(self):
     )
     metadata.add_input(DocumentTypes.TextDocument)
     metadata.add_output(Uri.TOKEN)
+    metadata.add_parameter('error', 'Throw error if set to True', 'boolean')
+    metadata.add_parameter('eol', 'Insert sentence boundaries', 'boolean')
     return metadata
 ```
 
 The variables used in the code above are defined closer to the top of the file:
 
 ```python
-APP_VERSION = '0.0.5'
+APP_VERSION = '0.0.6'
 MMIF_VERSION = '0.4.0'
 MMIF_PYTHON_VERSION = '0.4.5'
 CLAMS_PYTHON_VERSION = '0.5.0'
@@ -108,6 +110,12 @@ The `_annotate()` method always returns an MMIF object and it is where most of t
 
 ```python
 def _annotate(self, mmif, **kwargs):
+    # some example code to show how to access paramyters, here to just print
+    # them and to willy-nilly throw an error if the caller wants that
+    for arg, val in kwargs.items():
+        print("Parameter %s=%s" % (arg, val))
+        if arg == 'error' and val is True:
+            raise Exception("Exception - %s" % kwargs['error'])
     # reset identifier counts for each annotation
     Identifiers.reset()
     # Initialize the MMIF object from he string if needed
@@ -271,19 +279,19 @@ COPY ./ ./
 CMD ["python3", "app.py"]
 ```
 
-This starts from the official `python:3.6-slim-buster` image and installs the requirements ( the `clams-python` package and the code it depends on). The Dockerfile only needs to be edited if additional installations are required to run the NLP tool, for extra Python modules you would typically only change the requirements file. This repository also includes a  `.dockerignore`  file. Editing it is optional, but with large repositories with lots of documentation and images you may want to add some file paths just to keep the image as small as possible.
+This starts from the official `python:3.6-slim-buster` image and installs the requirements ( the `clams-python` package and the code it depends on). The Dockerfile only needs to be edited if additional installations are required to run the NLP tool, for extra Python modules you would typically only change the requirements file. This repository also includes a `.dockerignore` file. Editing it is optional, but with large repositories with lots of documentation and images you may want to add some file paths just to keep the image as small as possible. It should be noted that there is a `clamsproject` user on [https://hub.docker.com/](https://hub.docker.com/) who created an image named `clamsproject/clams-python:0.5.0` which you can use instead of `python:3.6-slim-buster`. In that case you would not have to install the requirements because in this case all requirements are installed  in `clams-python:0.5.0`.
 
 To build the Docker image you do the following, where the -t option let's you pick a name and a tag for the image. You can use another name if you like. You do not have to add a tag and you could just use `-t nlp-clams-example`, but it is usually a good idea to use the version name as a tag. Use one of the following commands to build the Docker image, the first one builds an image with a production server using Gunicorn, the second one builds a development server using Flask.
 
 ```bash
-$ docker build -t clams-nlp-example:0.0.5 .
-$ docker build -t clams-nlp-example:0.0.5 -f Dockerfile.develop .
+$ docker build -t clams-nlp-example:0.0.6 .
+$ docker build -t clams-nlp-example:0.0.6 -f Dockerfile.develop .
 ```
 
 To test the Flask app in the container do
 
 ```bash
-$ docker run --rm -it clams-nlp-example:0.0.5 bash
+$ docker run --rm -it clams-nlp-example:0.0.6 bash
 ```
 
 You are now running a bash shell in the container and in the container you can run
@@ -297,7 +305,7 @@ Escape out of the container with Ctrl-d.
 To test the Flask app in the container from your local machine do
 
 ```bash
-$ docker run --name clams-nlp-example --rm -d -p 5000:5000 clams-nlp-example:0.0.5
+$ docker run --name clams-nlp-example --rm -d -p 5000:5000 clams-nlp-example:0.0.6
 ```
 
 The `--name` option gives a name to the container which we use later to stop it (if we do not name the container then Docker will generate a name and we have to query docker to see what containers are running and then use that name to stop it). Now you can use curl to send requests:
@@ -312,7 +320,7 @@ $ curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0
 In the previous section we mentioned that instead of having the text inline you can also use the location property to point to a text file. This will not work with the set up layed out above because that dependent on having a local path on your machine and the Docker container has no access to that path. What you need to do is to make sure that the container can see the data on your local machine and you can use the `-v` option for that:
 
 ```bash
-$ docker run --name clams-nlp-example --rm -d -p 5000:5000 -v $PWD/input/data:/data clams-nlp-example:0.0.5
+$ docker run --name clams-nlp-example --rm -d -p 5000:5000 -v $PWD/input/data:/data clams-nlp-example:0.0.6
 ```
 
 We now have specified that the `/data ` directory on the container is mounted to the `input/data` directory in the repository. Now you need to make sure that the input MMIF file uses the path on the container:
