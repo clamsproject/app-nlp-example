@@ -26,12 +26,12 @@ from lapps.discriminators import Uri
 # Import the NLP tool. The NLP tool code may also be embedded in this script.
 import tokenizer
 
-# Making version dependencies explicit. Some, but not yet all, of these are
+# Making version dependencies explicit. Some, but not all, of these are
 # added to the metadata of the application.
-APP_VERSION = '0.0.6'
+APP_VERSION = '0.0.7'
 MMIF_VERSION = '0.4.0'
-MMIF_PYTHON_VERSION = '0.4.5'
-CLAMS_PYTHON_VERSION = '0.5.0'
+MMIF_PYTHON_VERSION = '0.4.6'
+CLAMS_PYTHON_VERSION = '0.5.1'
 TOKENIZER_VERSION = tokenizer.__VERSION__
 
 APP_LICENSE = 'Apache 2.0'
@@ -98,10 +98,20 @@ class TokenizerApp(ClamsApp):
     def _read_text(self, textdoc):
         """Read the text content from the document or the text value."""
         if textdoc.location:
-            fh = urllib.request.urlopen(textdoc.location)
-            text = fh.read().decode('utf8')
+            # TODO: need to test this a little bit more and see which way of
+            # opening a file is used for all cases
+            try:
+                fh = urllib.request.urlopen(textdoc.location)
+                text = fh.read().decode('utf8')
+                #print('--- opened with urllib:', textdoc.location)
+            except urllib.error.URLError:
+                loc = textdoc.location[7:]
+                text = open(loc).read()
+                #print('--- opened with open():', loc)
         else:
             text = textdoc.properties.text.value
+            #print('--- read text value')
+        #print('    "%s"' % text.replace('\n', ' ')[:50])
         return text
 
     def _run_nlp_tool(self, doc, new_view, full_doc_id):

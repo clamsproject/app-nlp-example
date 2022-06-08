@@ -1,11 +1,11 @@
 # Wrapping an NLP Application
 
-This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS application. This may not make a lot of sense without glancing over recent MMIF specifications at [https://mmif.clams.ai/](https://mmif.clams.ai/). The example in here is for CLAMS version 0.5.0 from July 2021 and version 0.0.6 of the application.
+This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS application. This may not make a lot of sense without glancing over recent MMIF specifications at [https://mmif.clams.ai/](https://mmif.clams.ai/). The example in here is for CLAMS version 0.5.1 from July 2021 and version 0.0.7 of the application.
 
 When building this application you need Python 3.6 or higher and install some modules, preferably in a clean Python virtual environment:
 
 ```bash
-$ pip install clams-python==0.5.0
+$ pip install clams-python==0.5.1
 ```
 
 This installs the CLAMS Python interface, which in turn installs the Python interface to the MMIF format and some third party modules like Flask. It also installs the LAPPS Python interface, which is relevant to most NLP applications.
@@ -22,7 +22,7 @@ def tokenize(text):
 ```python
 >>> import tokenizer
 >>> tokenizer.tokenize('Fido barks.')
-[(0, 4), (5, 10)] 
+[(0, 4), (5, 10)]
 ```
 
 
@@ -45,7 +45,7 @@ from lapps.discriminators import Uri
 import tokenizer
 ```
 
-For non-NLP CLAMS applications we would also do  `from mmif.vocabulary import AnnotationTypes`, but this is not needed for NLP applications because they do not need the CLAMS vocabulary. What we do need to import are the URIs of all LAPPS annotation types and the NLP tool itself. 
+For non-NLP CLAMS applications we would also do  `from mmif.vocabulary import AnnotationTypes`, but this is not needed for NLP applications because they do not need the CLAMS vocabulary. What we do need to import are the URIs of all LAPPS annotation types and the NLP tool itself.
 
 Importing `lapps.discriminators.Uri` is for convenience since it gives us easy acces to the URIs of annotation types and some of their attributes. The following code prints a list of available variables that point to URIs:
 
@@ -94,10 +94,10 @@ def _appmetadata(self):
 The variables used in the code above are defined closer to the top of the file:
 
 ```python
-APP_VERSION = '0.0.6'
+APP_VERSION = '0.0.7'
 MMIF_VERSION = '0.4.0'
-MMIF_PYTHON_VERSION = '0.4.5'
-CLAMS_PYTHON_VERSION = '0.5.0'
+MMIF_PYTHON_VERSION = '0.4.6'
+CLAMS_PYTHON_VERSION = '0.5.1'
 TOKENIZER_VERSION = tokenizer.__VERSION__
 
 APP_LICENSE = 'Apache 2.0'
@@ -212,8 +212,8 @@ The first one is for a development server, the second for a production server.
 
 There are two ways to test the application. The first is to use the `test.py` script, which will just test the wrapping code without using Flask:
 
-```
-$ python test.py example-mmif.json out.json
+```bash
+$ python test.py input/example-1.mmif out.json
 ```
 
 When you run this the `out.json` file should be about 10K in size and contain pretty printed JSON. And at the same time something like the following should be printed to the standard output:
@@ -227,13 +227,13 @@ When you run this the `out.json` file should be about 10K in size and contain pr
 
 The second way tests the behavior of the application in a Flask server by running the application as a service in one terminal:
 
-```
+```bash
 $ python app.py --develop
 ```
 
 And poking at it from another:
 
-```
+```bash
 $ curl http://0.0.0.0:5000/
 $ curl -H "Accept: application/json" -X POST -d@input/example-1.mmif http://0.0.0.0:5000/
 ```
@@ -248,7 +248,7 @@ Some notes on the example input MMIF file. It has two documents in its `document
   "properties": {
     "id": "m1",
     "mime": "text/plain",
-    "location": "/var/archive/text/example.txt"
+    "location": "file:///var/archive/text/example.txt"
 }
 ```
 
@@ -284,20 +284,20 @@ This starts from the official `python:3.6-slim-buster` image and installs the re
 To build the Docker image you do the following, where the -t option let's you pick a name and a tag for the image. You can use another name if you like. You do not have to add a tag and you could just use `-t nlp-clams-example`, but it is usually a good idea to use the version name as a tag. Use one of the following commands to build the Docker image, the first one builds an image with a production server using Gunicorn, the second one builds a development server using Flask.
 
 ```bash
-$ docker build -t clams-nlp-example:0.0.6 .
-$ docker build -t clams-nlp-example:0.0.6 -f Dockerfile.develop .
+$ docker build -t clams-nlp-example:0.0.7 .
+$ docker build -t clams-nlp-example:0.0.7 -f Dockerfile.develop .
 ```
 
 To test the Flask app in the container do
 
 ```bash
-$ docker run --rm -it clams-nlp-example:0.0.6 bash
+$ docker run --rm -it clams-nlp-example:0.0.7 bash
 ```
 
 You are now running a bash shell in the container and in the container you can run
 
 ```
-root@c85a08b22f18:/app# python test.py example-mmif.json out.json 
+root@c85a08b22f18:/app# python test.py input/example-1.mmif out.json
 ```
 
 Escape out of the container with Ctrl-d.
@@ -305,29 +305,29 @@ Escape out of the container with Ctrl-d.
 To test the Flask app in the container from your local machine do
 
 ```bash
-$ docker run --name clams-nlp-example --rm -d -p 5000:5000 clams-nlp-example:0.0.6
+$ docker run --name clams-nlp-example --rm -d -p 5000:5000 clams-nlp-example:0.0.7
 ```
 
 The `--name` option gives a name to the container which we use later to stop it (if we do not name the container then Docker will generate a name and we have to query docker to see what containers are running and then use that name to stop it). Now you can use curl to send requests:
 
 ```bash
 $ curl http://0.0.0.0:5000/
-$ curl -H "Accept: application/json" -X POST -d@example-mmif.json http://0.0.0.0:5000/
+$ curl -X POST -d@input/example-1.mmif http://0.0.0.0:5000/
 ```
 
 ##### Using the location property
 
-In the previous section we mentioned that instead of having the text inline you can also use the location property to point to a text file. This will not work with the set up layed out above because that dependent on having a local path on your machine and the Docker container has no access to that path. What you need to do is to make sure that the container can see the data on your local machine and you can use the `-v` option for that:
+In the previous section we mentioned that instead of having the text inline you can also use the location property to point to a text file. The example shown there will not work with the Docker set up layed out here because the previous example dependent on having a local path on your machine and the Docker container has no access to that path. What you need to do is to make sure that the container can see the data on your local machine and you can use the `-v` option for that:
 
 ```bash
-$ docker run --name clams-nlp-example --rm -d -p 5000:5000 -v $PWD/input/data:/data clams-nlp-example:0.0.6
+$ docker run --name clams-nlp-example --rm -d -p 5000:5000 -v $PWD/input/data:/data clams-nlp-example:0.0.7
 ```
 
 We now have specified that the `/data ` directory on the container is mounted to the `input/data` directory in the repository. Now you need to make sure that the input MMIF file uses the path on the container:
 
 ```json
 {
-  "@type": "http://mmif.clams.ai/0.3.1/vocabulary/VideoDocument",
+  "@type": "http://mmif.clams.ai/0.4.0/vocabulary/VideoDocument",
   "properties": {
     "id": "m1",
     "mime": "text/plain",
@@ -338,8 +338,5 @@ We now have specified that the `/data ` directory on the container is mounted to
 And now you can use curl again
 
 ```bash
-$ curl -H "Accept: application/json" -X POST -d@input/example-3.mmif http://0.0.0.0:5000/
+$ curl -X POST -d@input/example-3.mmif http://0.0.0.0:5000/
 ```
-
-
-
