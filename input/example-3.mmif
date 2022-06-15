@@ -8,15 +8,15 @@
       "properties": {
         "id": "m1",
         "mime": "video/mpeg",
-        "location": "/var/archive/video/example-video.mp4"
+        "location": "file:///data/video/video/example-video.mp4"
       }
     },
     {
       "@type": "http://mmif.clams.ai/0.4.0/vocabulary/TextDocument",
       "properties": {
         "id": "m2",
-        "mime": "video/mpeg",
-        "location": "/data/text/example.txt"
+        "mime": "text/plain",
+        "location": "file:///data/text/example.txt"
       }
     }
   ],

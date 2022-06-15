@@ -1,0 +1,9 @@
+FROM clamsproject/clams-python:0.5.1
+
+RUN apt-get -y update && apt-get -y install tree curl vim
+
+WORKDIR ./app
+
+COPY ./ ./
+
+CMD ["python3", "app.py", "--develop"]

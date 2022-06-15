@@ -1,14 +1,14 @@
 # Wrapping an NLP Application
 
-This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS application. This may not make a lot of sense without glancing over recent MMIF specifications at [https://mmif.clams.ai/](https://mmif.clams.ai/). The example in here is for CLAMS version 0.5.1 from July 2021 and version 0.0.7 of the application.
+This repository is a tutorial on how to wrap a simple NLP tool as a CLAMS application. This may not make a lot of sense without glancing over recent MMIF specifications at [https://mmif.clams.ai/](https://mmif.clams.ai/). The example in here is for CLAMS version 0.5.1 from March 2022 and version 0.0.7 of the application.
 
 When building this application you need Python 3.6 or higher and install some modules, preferably in a clean Python virtual environment:
 
 ```bash
-$ pip install clams-python==0.5.1
+$ pip install -r requirements.txt
 ```
 
-This installs the CLAMS Python interface, which in turn installs the Python interface to the MMIF format and some third party modules like Flask. It also installs the LAPPS Python interface, which is relevant to most NLP applications.
+This boils down to installing version 0.5.1 of clams-python, which installs the the CLAMS code, the Python interface to the MMIF format and some third party modules like Flask and requests. It also installs the LAPPS Python interface, which is relevant to most NLP applications.
 
 ### 1.  The NLP tool
 
@@ -104,7 +104,7 @@ APP_LICENSE = 'Apache 2.0'
 TOKENIZER_LICENSE = 'Apache 2.0'
 ```
 
-The MMIF_PYTHON_VERSION and CLAMS_PYTHON_VERSION variables are technically not needed since they are implied by using `pip install clams-python==0.5.0`, but I find it helpful to name them explicitly.
+The MMIF_PYTHON_VERSION and CLAMS_PYTHON_VERSION variables are technically not needed since they are implied by using `pip install clams-python==0.5.1`, but I find it helpful to name them explicitly.
 
 The `_annotate()` method always returns an MMIF object and it is where most of the work starts. For a text processing app, it is mostly concerned with finding text documents, creating new views and calling the code that runs over the text and inserts the results.
 
@@ -201,7 +201,7 @@ tokenizer_service.serve_production()
 
 On the command line these correspond to the following two invocations:
 
-```
+```bash
 $ python app.py --develop
 $ python app.py
 ```
@@ -240,19 +240,19 @@ $ curl -H "Accept: application/json" -X POST -d@input/example-1.mmif http://0.0.
 
 The first one prints the metadata and the second the output MMIF file. Appending `?pretty=True` to the URL will result in pretty printed output. Note that with the `--develop` option we started a Flask development server, without the option a production server will be started.
 
-Some notes on the example input MMIF file. It has two documents in its `documents` list, a video document and a text document. The text document has the text inline in a text value field. You could also give it a location as follows
+Some notes on the example input MMIF file. It has two documents in its `documents` list, a video document and a text document. The text document has the text inline in a text value field. You could also give it a location as follows (see `input/example-2.mmif`).
 
 ```json
 {
-  "@type": "http://mmif.clams.ai/0.3.1/vocabulary/VideoDocument",
+  "@type": "http://mmif.clams.ai/0.4.0/vocabulary/TextDocument",
   "properties": {
-    "id": "m1",
+    "id": "m2",
     "mime": "text/plain",
     "location": "file:///var/archive/text/example.txt"
 }
 ```
 
-The location has to be URL or an absolute path and it is your resonsibility to make sure it exists. Note how the video document in the example defines a path to an mp4 file which most likely does not exist. This is not hurting us because at no time are we accessing that location.
+The location has to be URL or an absolute path and it is your resonsibility to make sure it exists. Note that the video document in the example defines a path to an mp4 file which most likely does not exist. This is not hurting us because at no time are we accessing that location.
 
 
 
@@ -271,7 +271,16 @@ Three configuration files for building a Docker image are part of this example r
 Here is the minimal Dockerfile included with this example:
 
 ```dockerfile
-FROM python:3.6-slim-buster
+FROM clamsproject/clams-python:0.5.1
+WORKDIR ./app
+COPY ./ ./
+CMD ["python3", "app.py"]
+```
+
+This starts from the basic CLAMS Docker image which is created from an offficial Python image with the clams-python package and the code it depends on added. The Dockerfile only needs to be edited if additional installations are required to run the NLP tool. In that case the Dockerfile will have a few more lines:
+
+```dockerfile
+FROM clamsproject/clams-python:0.5.1
 WORKDIR ./app
 COPY ./requirements.txt .
 RUN pip3 install -r requirements.txt
@@ -279,14 +288,18 @@ COPY ./ ./
 CMD ["python3", "app.py"]
 ```
 
-This starts from the official `python:3.6-slim-buster` image and installs the requirements ( the `clams-python` package and the code it depends on). The Dockerfile only needs to be edited if additional installations are required to run the NLP tool, for extra Python modules you would typically only change the requirements file. This repository also includes a `.dockerignore` file. Editing it is optional, but with large repositories with lots of documentation and images you may want to add some file paths just to keep the image as small as possible. It should be noted that there is a `clamsproject` user on [https://hub.docker.com/](https://hub.docker.com/) who created an image named `clamsproject/clams-python:0.5.0` which you can use instead of `python:3.6-slim-buster`. In that case you would not have to install the requirements because in this case all requirements are installed  in `clams-python:0.5.0`.
+With this Dockerfile you typically only need to make changes to the requirements file for additional python installs.
 
-To build the Docker image you do the following, where the -t option let's you pick a name and a tag for the image. You can use another name if you like. You do not have to add a tag and you could just use `-t nlp-clams-example`, but it is usually a good idea to use the version name as a tag. Use one of the following commands to build the Docker image, the first one builds an image with a production server using Gunicorn, the second one builds a development server using Flask.
+This repository also includes a `.dockerignore` file. Editing it is optional, but with large repositories with lots of documentation and images you may want to add some file paths just to keep the image as small as possible.
+
+Use one of the following commands to build the Docker image, the first one builds an image with a production server using Gunicorn, the second one builds a development server using Flask.
 
 ```bash
 $ docker build -t clams-nlp-example:0.0.7 .
-$ docker build -t clams-nlp-example:0.0.7 -f Dockerfile.develop .
+$ docker build -t clams-nlp-example:0.0.7-dev -f Dockerfile.dev .
 ```
+
+The -t option let's you pick a name and a tag for the image. You can use another name if you like. You do not have to add a tag and you could just use `-t nlp-clams-example`, but it is usually a good idea to use the version name as the tag.
 
 To test the Flask app in the container do
 
@@ -308,7 +321,7 @@ To test the Flask app in the container from your local machine do
 $ docker run --name clams-nlp-example --rm -d -p 5000:5000 clams-nlp-example:0.0.7
 ```
 
-The `--name` option gives a name to the container which we use later to stop it (if we do not name the container then Docker will generate a name and we have to query docker to see what containers are running and then use that name to stop it). Now you can use curl to send requests:
+The `--name` option gives a name to the container which we use later to stop it (if we do not name the container then Docker will generate a name and we have to query docker to see what containers are running and then use that name to stop it). Now you can use curl to send requests (not sending the -h headers for brevity, it does work without them):
 
 ```bash
 $ curl http://0.0.0.0:5000/
@@ -317,7 +330,7 @@ $ curl -X POST -d@input/example-1.mmif http://0.0.0.0:5000/
 
 ##### Using the location property
 
-In the previous section we mentioned that instead of having the text inline you can also use the location property to point to a text file. The example shown there will not work with the Docker set up layed out here because the previous example dependent on having a local path on your machine and the Docker container has no access to that path. What you need to do is to make sure that the container can see the data on your local machine and you can use the `-v` option for that:
+In the previous section we mentioned that instead of having the text inline you can also use the location property to point to a text file. This will not work with the set up layed out above because that dependent on having a local path on your machine and the Docker container has no access to that path. What you need to do is to make sure that the container can see the data on your local machine and you can use the `-v` option for that:
 
 ```bash
 $ docker run --name clams-nlp-example --rm -d -p 5000:5000 -v $PWD/input/data:/data clams-nlp-example:0.0.7

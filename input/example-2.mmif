@@ -15,7 +15,7 @@
       "@type": "http://mmif.clams.ai/0.4.0/vocabulary/TextDocument",
       "properties": {
         "id": "m2",
-        "mime": "video/mpeg",
+        "mime": "text/plain",
 	"location": "file:///var/archive/text/example.txt"
       }
     }
