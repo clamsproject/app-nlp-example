@@ -8,7 +8,7 @@
       "properties": {
         "id": "m1",
         "mime": "video/mpeg",
-        "location": "/var/archive/video/example-video.mp4"
+        "location": "file:///var/archive/video/example-video.mp4"
       }
     },
     {

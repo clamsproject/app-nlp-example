@@ -1,10 +1,6 @@
-FROM python:3.6-slim-buster
+FROM clamsproject/clams-python:0.5.1
 
 WORKDIR ./app
-
-COPY ./requirements.txt .
-
-RUN pip install -r requirements.txt
 
 COPY ./ ./
 
